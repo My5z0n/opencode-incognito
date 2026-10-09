@@ -1,0 +1,40 @@
+{
+  "name": "opencode-incognito",
+  "version": "0.1.0",
+  "description": "Temporary OpenCode V2 TUI sessions with automatic cleanup on tab close and exit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/My5z0n/opencode-incognito.git"
+  },
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./tui": "./tui.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test:render": "bun test --preload @opentui/solid/preload ./test/tui-render.test.tsx"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.0.26",
+    "@opencode/schema": "2.0.26"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.5.17",
+    "@opentui/solid": ">=0.5.17",
+    "solid-js": ">=1.9.0"
+  },
+  "overrides": {
+    "seroval": "^1.6.9"
+  },
+  "devDependencies": {
+    "@opentui/core": "0.5.17",
+    "@opentui/solid": "0.5.17",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^22.0.0",
+    "solid-js": "1.9.12",
+    "typescript": "^5.9.0"
+  }
+}

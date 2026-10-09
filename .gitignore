@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.opencode/
+integration-artifacts/
+*.tgz
+.env
+.env.*
