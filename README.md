@@ -21,6 +21,16 @@ including when already in incognito.
 It never converts an existing normal conversation into a temporary one.
 Switch between it and ordinary sessions using the normal session picker/tabs.
 The footer identifies temporary sessions created by this TUI.
+An empty incognito session starts with a centered **Temporary chat** heading and
+the original OpenCode input field. On the first message, the composer returns to
+its regular position at the bottom. Model/agent selection, paste, and attachments
+remain handled by OpenCode's native composer.
+The landing screen says "History will be deleted when you close this tab." The
+**INCOGNITO** footer is hidden there and returns once the conversation starts.
+
+OpenCode generates conversation titles normally; the plugin adds **`[Incognito]`**
+in front, for example `[Incognito] Fix login form`. It does not use a permanent
+"Temporary session" title.
 Click **X on an incognito tab** to immediately request deletion of that session
 and its child sessions. Ordinary tab closure still preserves ordinary history.
 
@@ -90,6 +100,8 @@ provider records, logs or other plugins' copies. Files changed by tools remain.
 - Manually forked sessions and independently created sessions are NOT tracked.
   Do not fork a temporary conversation if you want its history removed.
 - Only full-screen TUI is supported, not desktop/web, `run`, or CLI `mini`.
+- The centered landing uses a reversible native-composer layout adapter tested
+  against OpenCode 2.0.26. Future host layout changes may require an update.
 - Other plugins, instructions and project tools remain active as normal.
 
 ## Development and validation
@@ -114,8 +126,9 @@ $env:OPENCODE_TEST_TEMP = "$env:LOCALAPPDATA\Temp\opencode"
 node --experimental-strip-types test/integration.ts
 ```
 
-No model requests are sent in the integration test. It does not connect to the
-shared service or delete anything in the normal database. Test artifacts are
+Automatic title generation is tested with a local HTTP mock provider; no external
+AI provider receives requests. The test does not connect to the shared service or
+delete anything in the normal database. Test artifacts are
 retained in the temporary directory for inspection.
 
 Validated: TypeScript check, unit/mocked-TUI tests, real-server plugin loading,
@@ -123,7 +136,9 @@ parent/child deletion, ordinary/other-client preservation, repeated cleanup, and
 cleanup after manual deletion. A real headless OpenTUI regression test also checks
 that the incognito footer mounts inside a box without orphan text, hides when
 switching back to an ordinary session, and reacts to closed tabs with a deletion
-request. The real-server integration test also covers individual tab-close cleanup
-and owner/sibling isolation. **Interactive TUI shutdown still needs a manual
+request. Landing tests verify centering, restoration after the first message,
+preservation of the same input control, and small-terminal layout. The real-server
+integration test also covers individual tab-close cleanup, owner/sibling isolation,
+and native automatic title generation with the incognito prefix. **Interactive TUI shutdown still needs a manual
 end-to-end check**; it uses OpenCode's documented async plugin cleanup and the
 host's before-exit disposal path.

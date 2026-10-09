@@ -4,11 +4,13 @@ import type { JSX } from '@opentui/solid';
 import { Incognito } from './rpc.ts';
 import { HEARTBEAT_MS } from './leases.ts';
 import { describeError } from './errors.ts';
+import { isLanding } from './landing-state.ts';
 
 export function setupIncognito(
   context: Context,
   renderStatus: (active: () => boolean) => JSX.Element,
   watchTabs: (changed: (sessionIDs: readonly string[]) => void) => void = () => {},
+  landing: (owns: (sessionID: string) => boolean) => void = () => {},
 ) {
     const owner = randomUUID();
     // Keep location-specific clients, since users may switch projects in one TUI.
@@ -22,6 +24,8 @@ export function setupIncognito(
     const rpc = context.client.rpc(Incognito);
     let stopped = false;
     let creating = false;
+
+    landing(sessionID => ownedRoots.has(sessionID));
 
     const forget = (sessionID: string) => {
       ownedRoots.delete(sessionID);
@@ -63,7 +67,9 @@ export function setupIncognito(
 
     context.ui.slot({
       append: 'prompt.footer.status',
-      render: input => renderStatus(() => !!input.sessionID && ownedRoots.has(context.data.session.root(input.sessionID))),
+      render: input => renderStatus(() => !!input.sessionID
+        && ownedRoots.has(context.data.session.root(input.sessionID))
+        && !isLanding(context, id => ownedRoots.has(id), input.sessionID)),
     });
 
     const openIncognito = async () => {

@@ -5,9 +5,11 @@ import { resolve, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { createServer } from 'node:net';
+import { createServer as createHttpServer } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 import { OpenCode } from '@opencode/client';
 import { Incognito } from '../src/rpc.ts';
+import { INITIAL_TITLE } from '../src/titles.ts';
 
 // This test NEVER connects to the user's shared service/database or runs a model.
 const binary = process.env.OPENCODE_TEST_BINARY;
@@ -15,9 +17,29 @@ if (!binary) throw new Error('Set OPENCODE_TEST_BINARY to the OpenCode executabl
 const tempRoot = process.env.OPENCODE_TEST_TEMP ?? resolve('integration-artifacts');
 await mkdir(tempRoot, { recursive: true });
 const scratch = await mkdtemp(join(tempRoot, 'incognito-test-'));
+let mockRequests = 0;
+const mock = createHttpServer(async (request, response) => {
+  for await (const _chunk of request) { /* Drain locally; never log prompt contents. */ }
+  mockRequests++;
+  response.writeHead(200, { 'content-type': 'text/event-stream' });
+  const chunk = (delta: object, finish_reason: string | null) => ({
+    id: 'chatcmpl-local-test', object: 'chat.completion.chunk', created: 0, model: 'mock-model',
+    choices: [{ index: 0, delta, finish_reason }],
+    ...(finish_reason ? { usage: { prompt_tokens: 1, completion_tokens: 3, total_tokens: 4 } } : {}),
+  });
+  response.write(`data: ${JSON.stringify(chunk({ role: 'assistant', content: 'Fix login form' }, null))}\n\n`);
+  response.write(`data: ${JSON.stringify(chunk({}, 'stop'))}\n\n`);
+  response.end('data: [DONE]\n\n');
+});
+await new Promise<void>(done => mock.listen(0, '127.0.0.1', done));
+const mockAddress = mock.address();
+if (!mockAddress || typeof mockAddress === 'string') throw new Error('Mock server has no port');
 await mkdir(join(scratch, 'config', 'opencode'), { recursive: true });
 await writeFile(join(scratch, 'config', 'opencode', 'opencode.jsonc'), JSON.stringify({
-  plugins: [pathToFileURL(resolve('.')).href],
+  plugins: [pathToFileURL(resolve('.')).href, {
+    package: pathToFileURL(resolve('test/fixtures/mock-provider')).href,
+    options: { baseURL: `http://127.0.0.1:${mockAddress.port}/v1` },
+  }],
 }));
 const port = await new Promise<number>((done, reject) => {
   const server = createServer();
@@ -70,6 +92,17 @@ try {
   const a = randomUUID();
   const b = randomUUID();
   const { sessionID } = await rpc.create({ owner: a }, { location }) as { sessionID: string };
+  assert.equal((await client.session.get({ sessionID })).title, INITIAL_TITLE);
+  await client.session.update({ sessionID, title: 'Fix login form' });
+  let prefixed = false;
+  for (let i = 0; i < 40; i++) {
+    if ((await client.session.get({ sessionID })).title === '[Incognito] Fix login form') { prefixed = true; break; }
+    await delay(50);
+  }
+  assert.equal(prefixed, true, 'Generated/native title must receive incognito prefix');
+  await client.session.update({ sessionID: normal.id, title: 'Ordinary title' });
+  await delay(100);
+  assert.equal((await client.session.get({ sessionID: normal.id })).title, 'Ordinary title');
   const plugins = await client.plugin.list({ location });
   assert.ok(JSON.stringify(plugins).includes('opencode-incognito'), JSON.stringify(plugins));
   const other = await rpc.create({ owner: b }, { location }) as { sessionID: string };
@@ -105,11 +138,26 @@ try {
   await rpc.close({ owner: a, sessionID: temporaryElsewhere.sessionID }, { location: otherLocation });
   await assert.rejects(client.session.get({ sessionID: temporaryElsewhere.sessionID }));
   assert.equal((await client.session.get({ sessionID: ordinaryElsewhere.id })).id, ordinaryElsewhere.id);
+  const autoTitle = await rpc.create({ owner: a, model: 'incognito-test/mock-model' }, { location }) as { sessionID: string };
+  await client.session.prompt({ sessionID: autoTitle.sessionID, text: 'Fix login form' });
+  await client.session.wait({ sessionID: autoTitle.sessionID }, { signal: AbortSignal.timeout(10_000) });
+  let generatedTitle = '';
+  for (let i = 0; i < 100; i++) {
+    generatedTitle = (await client.session.get({ sessionID: autoTitle.sessionID })).title ?? '';
+    if (generatedTitle === '[Incognito] Fix login form') break;
+    await delay(50);
+  }
+  assert.equal(generatedTitle, '[Incognito] Fix login form', 'Native title generation must work with the prefix');
+  assert.ok(mockRequests >= 2, 'Primary response and title must both use the local mock provider');
+  await rpc.close({ owner: a, sessionID: autoTitle.sessionID }, { location });
   console.log('PASS: real OpenCode server loads plugin; release and individual tab-close remove parent/children, preserve ordinary/sibling/other-owner sessions; repeated/missing cleanup works.');
+  console.log('PASS: native automatic title generation uses the local mock provider and preserves the incognito prefix.');
 } catch (error) {
   console.error(safeOutput());
   throw error;
 } finally {
   processHandle.kill();
+  mock.closeAllConnections();
+  await new Promise<void>(done => mock.close(() => done()));
   console.log(`Isolated test artifacts: ${scratch}`);
 }

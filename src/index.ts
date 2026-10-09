@@ -2,6 +2,7 @@ import { Plugin, Model, Agent } from '@opencode/plugin';
 import { Session } from '@opencode/schema/session';
 import { Incognito } from './rpc.ts';
 import { LeaseManager, MARKER, parseLeases } from './leases.ts';
+import { INITIAL_TITLE, installTitles } from './titles.ts';
 
 const STORAGE_KEY = 'leases/v1';
 
@@ -23,6 +24,7 @@ export default Plugin.define({
       },
       remove: sessionID => ctx.session.remove({ sessionID }),
     });
+    const stopTitles = await installTitles(ctx);
 
     await ctx.rpc.register(Incognito, {
       async create(input) {
@@ -34,7 +36,7 @@ export default Plugin.define({
         const created = await ctx.session.create({
           id,
           location: { directory: ctx.location.directory },
-          title: '[Incognito] Temporary session',
+          title: INITIAL_TITLE,
           metadata: { [MARKER]: owner },
           model: selectedModel,
           agent: agent ? Agent.ID.make(agent) : undefined,
@@ -66,6 +68,9 @@ export default Plugin.define({
     const timer = setInterval(() => void sweep(), 30_000);
     timer.unref?.();
     // Server/plugin reload must not delete sessions whose TUI is still alive.
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      stopTitles();
+    };
   },
 });

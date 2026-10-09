@@ -1,6 +1,7 @@
 import { Plugin } from '@opencode/plugin/tui';
 import { createEffect, Show } from 'solid-js';
 import { setupIncognito } from './tui-controller.ts';
+import { registerLanding } from './landing.tsx';
 
 export default Plugin.define({
   id: 'opencode-incognito.tui',
@@ -24,6 +25,7 @@ export default Plugin.define({
           },
         });
       },
+      owns => registerLanding(context, owns),
     );
   },
 });
