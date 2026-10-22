@@ -74,7 +74,7 @@ test('incognito footer mounts inside a box without orphan text and hides on norm
   }
 });
 
-test('empty incognito centers the native composer and restores it after the first message', async () => {
+test('landing uses the public heading slot without moving or replacing the native input', async () => {
   const claims = new Map<string, SlotClaim>();
   let layer: KeymapLayer | undefined;
   const [sessionID, setSessionID] = createSignal('normal');
@@ -111,6 +111,7 @@ test('empty incognito centers the native composer and restores it after the firs
     }) },
   } as unknown as Context;
   const cleanup = await plugin.setup(context);
+  expect(claims.has('prompt.footer')).toBe(false);
   const footerInput = { get sessionID() { return sessionID(); }, mode: 'normal' as const, showDetails: true };
   const headerInput = { get sessionID() { return sessionID(); } };
   let composer: BoxRenderable | undefined;
@@ -127,7 +128,6 @@ test('empty incognito centers the native composer and restores it after the firs
         <box flexDirection="row" justifyContent="space-between">
           <text>Build · test model</text>
           {(claims.get('prompt.footer.status') as SlotClaim<'prompt.footer.status'>).render(footerInput)}
-          {(claims.get('prompt.footer') as SlotClaim<'prompt.footer'>).render(footerInput)}
         </box>
       </box>
     </box>
@@ -140,10 +140,9 @@ test('empty incognito centers the native composer and restores it after the firs
     expect(renderer.captureCharFrame()).toContain('Temporary chat');
     expect(renderer.captureCharFrame()).toContain('History will be deleted when you close this tab.');
     expect(renderer.captureCharFrame()).not.toContain('INCOGNITO');
-    expect(composer!.width).toBe(75);
-    expect(composer!.x).toBeGreaterThan(0);
-    expect(textarea!.y).toBeGreaterThan(10);
-    expect(textarea!.y).toBeLessThan(25);
+    expect(composer!.width).toBe(120);
+    expect(composer!.x).toBe(0);
+    expect(textarea!.y).toBeGreaterThan(30);
     setSessionID('normal');
     await renderer.renderOnce();
     expect(renderer.captureCharFrame()).not.toContain('Temporary chat');
@@ -152,7 +151,7 @@ test('empty incognito centers the native composer and restores it after the firs
     setSessionID('temporary');
     await renderer.renderOnce();
     expect(renderer.captureCharFrame()).toContain('Temporary chat');
-    expect(composer!.width).toBe(75);
+    expect(composer!.width).toBe(120);
     setPending([{}]);
     await renderer.renderOnce();
     expect(renderer.captureCharFrame()).not.toContain('Temporary chat');

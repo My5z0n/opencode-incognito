@@ -1,6 +1,7 @@
 # opencode-incognito
 
-Experimental temporary full-size TUI sessions for **OpenCode V2 2.0.26**.
+Experimental temporary full-size TUI sessions tested with **OpenCode V2 2.1.3**
+and **OpenTUI 0.6.6**.
 Works with the regular shared server: no `--standalone` or `OPENCODE_DB` needed.
 
 ## Installation
@@ -21,9 +22,11 @@ including when already in incognito.
 It never converts an existing normal conversation into a temporary one.
 Switch between it and ordinary sessions using the normal session picker/tabs.
 The footer identifies temporary sessions created by this TUI.
-An empty incognito session starts with a centered **Temporary chat** heading and
-the original OpenCode input field. On the first message, the composer returns to
-its regular position at the bottom. Model/agent selection, paste, and attachments
+An empty incognito session shows a **Temporary chat** heading above
+the original OpenCode input field through the public `session.composer.top` slot.
+The heading disappears on the first message. The input stays in OpenCode's standard
+bottom layout; the plugin does not inspect or modify host renderables.
+Model/agent selection, paste, and attachments
 remain handled by OpenCode's native composer.
 The landing screen says "History will be deleted when you close this tab." The
 **INCOGNITO** footer is hidden there and returns once the conversation starts.
@@ -100,8 +103,8 @@ provider records, logs or other plugins' copies. Files changed by tools remain.
 - Manually forked sessions and independently created sessions are NOT tracked.
   Do not fork a temporary conversation if you want its history removed.
 - Only full-screen TUI is supported, not desktop/web, `run`, or CLI `mini`.
-- The centered landing uses a reversible native-composer layout adapter tested
-  against OpenCode 2.0.26. Future host layout changes may require an update.
+- UI contributions use documented plugin slots without native-composer layout
+  overrides. Future public API or dependency changes may still require an update.
 - Other plugins, instructions and project tools remain active as normal.
 
 ## Development and validation
@@ -136,7 +139,7 @@ parent/child deletion, ordinary/other-client preservation, repeated cleanup, and
 cleanup after manual deletion. A real headless OpenTUI regression test also checks
 that the incognito footer mounts inside a box without orphan text, hides when
 switching back to an ordinary session, and reacts to closed tabs with a deletion
-request. Landing tests verify centering, restoration after the first message,
+request. Landing tests verify the heading's first-message transition, unchanged native input width and position,
 preservation of the same input control, and small-terminal layout. The real-server
 integration test also covers individual tab-close cleanup, owner/sibling isolation,
 and native automatic title generation with the incognito prefix. **Interactive TUI shutdown still needs a manual

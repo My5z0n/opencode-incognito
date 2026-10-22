@@ -19,7 +19,3 @@ export function showLanding(
   return ownedRoot && !running && pendingCount === 0
     && !messages.some(message => ['user', 'assistant', 'shell', 'synthetic'].includes(message.type));
 }
-
-export function landingBottomSpace(height: number): number {
-  return height < 18 ? 0 : Math.max(0, Math.floor((height - 10) / 2));
-}
